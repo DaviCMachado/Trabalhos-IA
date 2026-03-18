@@ -1,0 +1,1 @@
+Especificar nossa pesquisa quanto ao problema dos missionários e canibais, descrever o problema e os cenários explorados
