@@ -1,74 +1,545 @@
 {
-    "testes": [
-        {
-            "in": {
-                "X": 3,
-                "Y": 3,
-                "Z": 2
-            }
+  "meta": {
+    "gerado_em": "2026-03-21T17:31:25",
+    "descricao": "Benchmarks BFS vs BFS otimizado para missionários e canibais",
+    "max_x_execucao": 200
+  },
+  "testes": [
+    {
+      "in": {
+        "X": 1,
+        "Y": 1,
+        "Z": 2
+      },
+      "out": {
+        "grafo": {
+          "arquivo": "c:\\Users\\davic\\OneDrive\\Documentos\\new\\7 semestre\\ia\\Trabalhos-IA\\T1\\data\\grafo_1x1_z2.pkl",
+          "status": "gerado"
         },
-        {
-            "in": {
-                "X": 4,
-                "Y": 4,
-                "Z": 2
-            }
+        "bfs": {
+          "sucesso": true,
+          "tempo_s": 0.0002412,
+          "memoria_kb": 2.3271,
+          "visitados": 4
         },
-        {
-            "in": {
-                "X": 4,
-                "Y": 4,
-                "Z": 3
-            }
+        "bfs_otimizado": {
+          "sucesso": true,
+          "tempo_s": 9.69e-05,
+          "memoria_kb": 2.5693,
+          "visitados": 4
         },
-        {
-            "in": {
-                "X": 1,
-                "Y": 1,
-                "Z": 1
-            }
+        "tempo_total_cenario_s": 0.0004031,
+        "executado_em": "2026-03-21T17:31:24",
+        "status": "ok"
+      }
+    },
+    {
+      "in": {
+        "X": 2,
+        "Y": 2,
+        "Z": 2
+      },
+      "out": {
+        "grafo": {
+          "arquivo": "c:\\Users\\davic\\OneDrive\\Documentos\\new\\7 semestre\\ia\\Trabalhos-IA\\T1\\data\\grafo_2x2_z2.pkl",
+          "status": "reutilizado"
         },
-        {
-            "in": {
-                "X": 2,
-                "Y": 2,
-                "Z": 2
-            }
+        "bfs": {
+          "sucesso": true,
+          "tempo_s": 0.0002347,
+          "memoria_kb": 4.8389,
+          "visitados": 11
         },
-        {
-            "in": {
-                "X": 1,
-                "Y": 3,
-                "Z": 2
-            }
+        "bfs_otimizado": {
+          "sucesso": true,
+          "tempo_s": 0.0002445,
+          "memoria_kb": 4.4385,
+          "visitados": 11
         },
-        {
-            "in": {
-                "X": 3,
-                "Y": 1,
-                "Z": 2
-            }
+        "tempo_total_cenario_s": 0.0005243,
+        "executado_em": "2026-03-21T17:31:24",
+        "status": "ok"
+      }
+    },
+    {
+      "in": {
+        "X": 3,
+        "Y": 3,
+        "Z": 2
+      },
+      "out": {
+        "grafo": {
+          "arquivo": "c:\\Users\\davic\\OneDrive\\Documentos\\new\\7 semestre\\ia\\Trabalhos-IA\\T1\\data\\grafo_3x3_z2.pkl",
+          "status": "reutilizado"
         },
-        {
-            "in": {
-                "X": 5,
-                "Y": 5,
-                "Z": 3
-            }
+        "bfs": {
+          "sucesso": true,
+          "tempo_s": 0.000516,
+          "memoria_kb": 6.0693,
+          "visitados": 16
         },
-        {
-            "in": {
-                "X": 5,
-                "Y": 5,
-                "Z": 2
-            }
+        "bfs_otimizado": {
+          "sucesso": true,
+          "tempo_s": 0.0017268,
+          "memoria_kb": 6.5254,
+          "visitados": 16
         },
-        {
-            "in": {
-                "X": 6,
-                "Y": 6,
-                "Z": 4
-            }
-        }
-    ]
+        "tempo_total_cenario_s": 0.0023083,
+        "executado_em": "2026-03-21T17:31:24",
+        "status": "ok"
+      }
+    },
+    {
+      "in": {
+        "X": 4,
+        "Y": 4,
+        "Z": 3
+      },
+      "out": {
+        "grafo": {
+          "arquivo": "c:\\Users\\davic\\OneDrive\\Documentos\\new\\7 semestre\\ia\\Trabalhos-IA\\T1\\data\\grafo_4x4_z3.pkl",
+          "status": "reutilizado"
+        },
+        "bfs": {
+          "sucesso": true,
+          "tempo_s": 0.0017866,
+          "memoria_kb": 11.1514,
+          "visitados": 28
+        },
+        "bfs_otimizado": {
+          "sucesso": true,
+          "tempo_s": 0.0017567,
+          "memoria_kb": 12.3027,
+          "visitados": 28
+        },
+        "tempo_total_cenario_s": 0.003779,
+        "executado_em": "2026-03-21T17:31:24",
+        "status": "ok"
+      }
+    },
+    {
+      "in": {
+        "X": 5,
+        "Y": 5,
+        "Z": 3
+      },
+      "out": {
+        "grafo": {
+          "arquivo": "c:\\Users\\davic\\OneDrive\\Documentos\\new\\7 semestre\\ia\\Trabalhos-IA\\T1\\data\\grafo_5x5_z3.pkl",
+          "status": "reutilizado"
+        },
+        "bfs": {
+          "sucesso": true,
+          "tempo_s": 0.0014455,
+          "memoria_kb": 12.833,
+          "visitados": 35
+        },
+        "bfs_otimizado": {
+          "sucesso": true,
+          "tempo_s": 0.002472,
+          "memoria_kb": 13.4189,
+          "visitados": 35
+        },
+        "tempo_total_cenario_s": 0.0040313,
+        "executado_em": "2026-03-21T17:31:24",
+        "status": "ok"
+      }
+    },
+    {
+      "in": {
+        "X": 6,
+        "Y": 6,
+        "Z": 4
+      },
+      "out": {
+        "grafo": {
+          "arquivo": "c:\\Users\\davic\\OneDrive\\Documentos\\new\\7 semestre\\ia\\Trabalhos-IA\\T1\\data\\grafo_6x6_z4.pkl",
+          "status": "reutilizado"
+        },
+        "bfs": {
+          "sucesso": true,
+          "tempo_s": 0.0015934,
+          "memoria_kb": 18.4873,
+          "visitados": 55
+        },
+        "bfs_otimizado": {
+          "sucesso": true,
+          "tempo_s": 0.0018485,
+          "memoria_kb": 20.6592,
+          "visitados": 55
+        },
+        "tempo_total_cenario_s": 0.003536,
+        "executado_em": "2026-03-21T17:31:24",
+        "status": "ok"
+      }
+    },
+    {
+      "in": {
+        "X": 8,
+        "Y": 8,
+        "Z": 4
+      },
+      "out": {
+        "grafo": {
+          "arquivo": "c:\\Users\\davic\\OneDrive\\Documentos\\new\\7 semestre\\ia\\Trabalhos-IA\\T1\\data\\grafo_8x8_z4.pkl",
+          "status": "gerado"
+        },
+        "bfs": {
+          "sucesso": true,
+          "tempo_s": 0.0043691,
+          "memoria_kb": 23.6709,
+          "visitados": 75
+        },
+        "bfs_otimizado": {
+          "sucesso": true,
+          "tempo_s": 0.0044575,
+          "memoria_kb": 22.1221,
+          "visitados": 75
+        },
+        "tempo_total_cenario_s": 0.0093641,
+        "executado_em": "2026-03-21T17:31:24",
+        "status": "ok"
+      }
+    },
+    {
+      "in": {
+        "X": 10,
+        "Y": 10,
+        "Z": 4
+      },
+      "out": {
+        "grafo": {
+          "arquivo": "c:\\Users\\davic\\OneDrive\\Documentos\\new\\7 semestre\\ia\\Trabalhos-IA\\T1\\data\\grafo_10x10_z4.pkl",
+          "status": "gerado"
+        },
+        "bfs": {
+          "sucesso": true,
+          "tempo_s": 0.0050748,
+          "memoria_kb": 28.8115,
+          "visitados": 92
+        },
+        "bfs_otimizado": {
+          "sucesso": true,
+          "tempo_s": 0.0045651,
+          "memoria_kb": 31.8672,
+          "visitados": 92
+        },
+        "tempo_total_cenario_s": 0.009761,
+        "executado_em": "2026-03-21T17:31:24",
+        "status": "ok"
+      }
+    },
+    {
+      "in": {
+        "X": 15,
+        "Y": 15,
+        "Z": 4
+      },
+      "out": {
+        "grafo": {
+          "arquivo": "c:\\Users\\davic\\OneDrive\\Documentos\\new\\7 semestre\\ia\\Trabalhos-IA\\T1\\data\\grafo_15x15_z4.pkl",
+          "status": "gerado"
+        },
+        "bfs": {
+          "sucesso": true,
+          "tempo_s": 0.0038192,
+          "memoria_kb": 37.6484,
+          "visitados": 123
+        },
+        "bfs_otimizado": {
+          "sucesso": true,
+          "tempo_s": 0.0061701,
+          "memoria_kb": 43.999,
+          "visitados": 123
+        },
+        "tempo_total_cenario_s": 0.0101522,
+        "executado_em": "2026-03-21T17:31:24",
+        "status": "ok"
+      }
+    },
+    {
+      "in": {
+        "X": 20,
+        "Y": 20,
+        "Z": 4
+      },
+      "out": {
+        "grafo": {
+          "arquivo": "c:\\Users\\davic\\OneDrive\\Documentos\\new\\7 semestre\\ia\\Trabalhos-IA\\T1\\data\\grafo_20x20_z4.pkl",
+          "status": "gerado"
+        },
+        "bfs": {
+          "sucesso": true,
+          "tempo_s": 0.0074984,
+          "memoria_kb": 47.1221,
+          "visitados": 153
+        },
+        "bfs_otimizado": {
+          "sucesso": true,
+          "tempo_s": 0.0063969,
+          "memoria_kb": 58.7441,
+          "visitados": 153
+        },
+        "tempo_total_cenario_s": 0.0144208,
+        "executado_em": "2026-03-21T17:31:24",
+        "status": "ok"
+      }
+    },
+    {
+      "in": {
+        "X": 30,
+        "Y": 30,
+        "Z": 4
+      },
+      "out": {
+        "grafo": {
+          "arquivo": "c:\\Users\\davic\\OneDrive\\Documentos\\new\\7 semestre\\ia\\Trabalhos-IA\\T1\\data\\grafo_30x30_z4.pkl",
+          "status": "gerado"
+        },
+        "bfs": {
+          "sucesso": true,
+          "tempo_s": 0.0057999,
+          "memoria_kb": 67.1006,
+          "visitados": 213
+        },
+        "bfs_otimizado": {
+          "sucesso": true,
+          "tempo_s": 0.0151803,
+          "memoria_kb": 81.8076,
+          "visitados": 213
+        },
+        "tempo_total_cenario_s": 0.0211363,
+        "executado_em": "2026-03-21T17:31:24",
+        "status": "ok"
+      }
+    },
+    {
+      "in": {
+        "X": 40,
+        "Y": 40,
+        "Z": 4
+      },
+      "out": {
+        "grafo": {
+          "arquivo": "c:\\Users\\davic\\OneDrive\\Documentos\\new\\7 semestre\\ia\\Trabalhos-IA\\T1\\data\\grafo_40x40_z4.pkl",
+          "status": "gerado"
+        },
+        "bfs": {
+          "sucesso": true,
+          "tempo_s": 0.0113701,
+          "memoria_kb": 82.7363,
+          "visitados": 273
+        },
+        "bfs_otimizado": {
+          "sucesso": true,
+          "tempo_s": 0.0111429,
+          "memoria_kb": 96.4482,
+          "visitados": 273
+        },
+        "tempo_total_cenario_s": 0.0227898,
+        "executado_em": "2026-03-21T17:31:24",
+        "status": "ok"
+      }
+    },
+    {
+      "in": {
+        "X": 50,
+        "Y": 50,
+        "Z": 4
+      },
+      "out": {
+        "grafo": {
+          "arquivo": "c:\\Users\\davic\\OneDrive\\Documentos\\new\\7 semestre\\ia\\Trabalhos-IA\\T1\\data\\grafo_50x50_z4.pkl",
+          "status": "gerado"
+        },
+        "bfs": {
+          "sucesso": true,
+          "tempo_s": 0.0178692,
+          "memoria_kb": 98.4326,
+          "visitados": 333
+        },
+        "bfs_otimizado": {
+          "sucesso": true,
+          "tempo_s": 0.0184232,
+          "memoria_kb": 113.9375,
+          "visitados": 333
+        },
+        "tempo_total_cenario_s": 0.0365112,
+        "executado_em": "2026-03-21T17:31:24",
+        "status": "ok"
+      }
+    },
+    {
+      "in": {
+        "X": 75,
+        "Y": 75,
+        "Z": 4
+      },
+      "out": {
+        "grafo": {
+          "arquivo": "c:\\Users\\davic\\OneDrive\\Documentos\\new\\7 semestre\\ia\\Trabalhos-IA\\T1\\data\\grafo_75x75_z4.pkl",
+          "status": "gerado"
+        },
+        "bfs": {
+          "sucesso": true,
+          "tempo_s": 0.0228919,
+          "memoria_kb": 161.6807,
+          "visitados": 483
+        },
+        "bfs_otimizado": {
+          "sucesso": true,
+          "tempo_s": 0.0234312,
+          "memoria_kb": 193.3438,
+          "visitados": 483
+        },
+        "tempo_total_cenario_s": 0.046582,
+        "executado_em": "2026-03-21T17:31:24",
+        "status": "ok"
+      }
+    },
+    {
+      "in": {
+        "X": 100,
+        "Y": 100,
+        "Z": 4
+      },
+      "out": {
+        "grafo": {
+          "arquivo": "c:\\Users\\davic\\OneDrive\\Documentos\\new\\7 semestre\\ia\\Trabalhos-IA\\T1\\data\\grafo_100x100_z4.pkl",
+          "status": "gerado"
+        },
+        "bfs": {
+          "sucesso": true,
+          "tempo_s": 0.0275432,
+          "memoria_kb": 200.5449,
+          "visitados": 633
+        },
+        "bfs_otimizado": {
+          "sucesso": true,
+          "tempo_s": 0.0264535,
+          "memoria_kb": 230.749,
+          "visitados": 633
+        },
+        "tempo_total_cenario_s": 0.0543607,
+        "executado_em": "2026-03-21T17:31:24",
+        "status": "ok"
+      }
+    },
+    {
+      "in": {
+        "X": 150,
+        "Y": 150,
+        "Z": 4
+      },
+      "out": {
+        "grafo": {
+          "arquivo": "c:\\Users\\davic\\OneDrive\\Documentos\\new\\7 semestre\\ia\\Trabalhos-IA\\T1\\data\\grafo_150x150_z4.pkl",
+          "status": "gerado"
+        },
+        "bfs": {
+          "sucesso": true,
+          "tempo_s": 0.0506554,
+          "memoria_kb": 278.749,
+          "visitados": 933
+        },
+        "bfs_otimizado": {
+          "sucesso": true,
+          "tempo_s": 0.0309918,
+          "memoria_kb": 333.4824,
+          "visitados": 933
+        },
+        "tempo_total_cenario_s": 0.0822464,
+        "executado_em": "2026-03-21T17:31:25",
+        "status": "ok"
+      }
+    },
+    {
+      "in": {
+        "X": 200,
+        "Y": 200,
+        "Z": 4
+      },
+      "out": {
+        "grafo": {
+          "arquivo": "c:\\Users\\davic\\OneDrive\\Documentos\\new\\7 semestre\\ia\\Trabalhos-IA\\T1\\data\\grafo_200x200_z4.pkl",
+          "status": "gerado"
+        },
+        "bfs": {
+          "sucesso": true,
+          "tempo_s": 0.0977114,
+          "memoria_kb": 356.9541,
+          "visitados": 1233
+        },
+        "bfs_otimizado": {
+          "sucesso": true,
+          "tempo_s": 0.0605181,
+          "memoria_kb": 418.209,
+          "visitados": 1233
+        },
+        "tempo_total_cenario_s": 0.1595206,
+        "executado_em": "2026-03-21T17:31:25",
+        "status": "ok"
+      }
+    },
+    {
+      "in": {
+        "X": 300,
+        "Y": 300,
+        "Z": 4
+      },
+      "out": {
+        "status": "skipped",
+        "motivo": "X=300 acima do limite BENCHMARK_MAX_X=200",
+        "executado_em": "2026-03-21T17:31:25"
+      }
+    },
+    {
+      "in": {
+        "X": 400,
+        "Y": 400,
+        "Z": 4
+      },
+      "out": {
+        "status": "skipped",
+        "motivo": "X=400 acima do limite BENCHMARK_MAX_X=200",
+        "executado_em": "2026-03-21T17:31:25"
+      }
+    },
+    {
+      "in": {
+        "X": 500,
+        "Y": 500,
+        "Z": 4
+      },
+      "out": {
+        "status": "skipped",
+        "motivo": "X=500 acima do limite BENCHMARK_MAX_X=200",
+        "executado_em": "2026-03-21T17:31:25"
+      }
+    },
+    {
+      "in": {
+        "X": 750,
+        "Y": 750,
+        "Z": 4
+      },
+      "out": {
+        "status": "skipped",
+        "motivo": "X=750 acima do limite BENCHMARK_MAX_X=200",
+        "executado_em": "2026-03-21T17:31:25"
+      }
+    },
+    {
+      "in": {
+        "X": 1000,
+        "Y": 1000,
+        "Z": 4
+      },
+      "out": {
+        "status": "skipped",
+        "motivo": "X=1000 acima do limite BENCHMARK_MAX_X=200",
+        "executado_em": "2026-03-21T17:31:25"
+      }
+    }
+  ]
 }

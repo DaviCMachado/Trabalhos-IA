@@ -33,20 +33,57 @@
 # x = 4, y = 4, z = 3 ---> Vai dar Solução Encontrada (porque para barco de tamanho 3, o limite é 5).
 
 import pickle
+import gc
 from pathlib import Path
 
 # Configurações Globais
-X, Y, Z = 4, 4, 3
+X, Y, Z = 5, 5, 3
 # Definimos o caminho globalmente para evitar erros de sincronização
 PASTA_DADOS = Path(__file__).parent / "data"
-
-# Assim, cada combinação de X, Y, Z gera seu próprio arquivo
 ARQUIVO_GRAFO = PASTA_DADOS / f"grafo_{X}x{Y}_z{Z}.pkl"
+
 from node import Node
 from search_engine import SearchEngine
 
-def imprimir_relatorio(res):
+
+def medir_tempos_justos(executar_normal, executar_otimizado, rodadas=8, aquecimento=2):
+    """Compara tempos reduzindo viés de cache por ordem de execução."""
+    for _ in range(aquecimento):
+        executar_normal()
+        executar_otimizado()
+
+    tempos_normal = []
+    tempos_otimizado = []
+
+    for i in range(rodadas):
+        if i % 2 == 0:
+            ordem = (("normal", executar_normal), ("otimizado", executar_otimizado))
+        else:
+            ordem = (("otimizado", executar_otimizado), ("normal", executar_normal))
+
+        for nome, fn in ordem:
+            gc.collect()
+            resultado = fn()
+            if nome == "normal":
+                tempos_normal.append(resultado["tempo"])
+            else:
+                tempos_otimizado.append(resultado["tempo"])
+
+    media_normal = sum(tempos_normal) / len(tempos_normal) if tempos_normal else 0.0
+    media_otimizado = sum(tempos_otimizado) / len(tempos_otimizado) if tempos_otimizado else 0.0
+    return media_normal, media_otimizado
+
+
+def salvar_grafo(arquivo_destino, raiz):
+    arquivo_destino.parent.mkdir(parents=True, exist_ok=True)
+    with open(arquivo_destino, "wb") as f:
+        pickle.dump(raiz, f)
+    print(f"💾 Grafo salvo em {arquivo_destino}")
+
+def imprimir_relatorio(res, titulo="BFS"):
     print("\n" + "="*60)
+    print(f"📊 Relatório: {titulo}")
+    print("="*60)
     if res["sucesso"]:
         print(f"🎉 SOLUÇÃO ENCONTRADA!")
         print(f"⏱️  Tempo: {res['tempo']:.6f}s | 💾 Memória: {res['memoria']:.2f}KB")
@@ -59,35 +96,77 @@ def imprimir_relatorio(res):
         print("❌ Não foi possível encontrar uma solução no grafo carregado.")
     print("="*60)
 
+def gerar_grafo(pasta_destino, arquivo_destino, titulo=""):
+    """Gera e salva grafo em um diretório específico"""
+    pasta_destino.mkdir(parents=True, exist_ok=True)
+    
+    print(f"\n⚙️  {titulo} - Gerando grafo em {arquivo_destino}...")
+    engine = SearchEngine(X, Y, Z, pasta_dados=pasta_destino, arquivo_grafo=arquivo_destino, pickle_module=pickle)
+    
+    raiz_original = Node(X, Y, "esquerda")
+    raiz = engine.gerar_e_salvar_grafo(raiz_original)
+    
+    print(f"✅ Grafo salvo em {arquivo_destino}")
+    return raiz, engine
+
 def main():
-    engine = SearchEngine(X, Y, Z, pasta_dados=PASTA_DADOS, arquivo_grafo=ARQUIVO_GRAFO, pickle_module=pickle)
-    raiz = None
+    print(f"🚀 Executando BFS Normal e Otimizado")
+    print(f"📋 Configuração: X={X}, Y={Y}, Z={Z}")
 
-    if ARQUIVO_GRAFO.exists():
-        print(f"📂 Arquivo de grafo detectado em: {ARQUIVO_GRAFO}")
-        print("[1] Usar grafo existente (mais rápido)")
-        print("[2] Gerar novo grafo (sobrescrever)")
-        opcao = input("Escolha uma opção: ")
-
-        if opcao == "2":
-            print("⚙️  Gerando novo espaço de estados...")
-            raiz_original = Node(X, Y, "esquerda")
-            raiz = engine.gerar_e_salvar_grafo(raiz_original)
-        else:
-            print("📥 Carregando dados do disco...")
-            with open(ARQUIVO_GRAFO, "rb") as f:
-                raiz = pickle.load(f)
-    else:
-        print(f"⚠️  Grafo não encontrado. Criando base de dados inicial...")
-        raiz_original = Node(X, Y, "esquerda")
-        raiz = engine.gerar_e_salvar_grafo(raiz_original)
-
-    # Execução da Busca
+    # Execução das buscas
     objetivo = (0, 0, "direita")
-    resultado = engine.bfs(raiz, objetivo)
 
-    # Relatório
-    imprimir_relatorio(resultado)
+    engine_base = SearchEngine(X, Y, Z, pasta_dados=PASTA_DADOS, arquivo_grafo=ARQUIVO_GRAFO, pickle_module=pickle)
+    raiz_base = Node(X, Y, "esquerda")
+
+    print(f"\n⚙️  Gerando grafo base único...")
+    engine_base.gerar_e_salvar_grafo(raiz_base)
+    print(f"✅ Grafo base salvo em {ARQUIVO_GRAFO}")
+
+    # Cada execução usa sua própria raiz em memória; o grafo salvo permanece único
+    raiz_normal = Node(X, Y, "esquerda")
+    raiz_otimizado = Node(X, Y, "esquerda")
+    engine_normal = SearchEngine(X, Y, Z, pasta_dados=PASTA_DADOS, arquivo_grafo=ARQUIVO_GRAFO, pickle_module=pickle)
+    engine_otimizado = SearchEngine(X, Y, Z, pasta_dados=PASTA_DADOS, arquivo_grafo=ARQUIVO_GRAFO, pickle_module=pickle)
+    
+    print(f"\n🔍 Executando BFS Normal...")
+    resultado_normal = engine_normal.bfs(raiz_normal, objetivo)
+    imprimir_relatorio(resultado_normal, "BFS Normal")
+
+    print(f"\n🔍 Executando BFS Otimizado...")
+    resultado_otimizado = engine_otimizado.bfs_memory_optimized(raiz_otimizado, objetivo)
+    imprimir_relatorio(resultado_otimizado, "BFS Otimizado")
+
+    # Benchmark justo para tempo (mitiga viés de cache/ordem)
+    def _exec_normal_benchmark():
+        engine = SearchEngine(X, Y, Z, pasta_dados=PASTA_DADOS, arquivo_grafo=ARQUIVO_GRAFO, pickle_module=pickle)
+        raiz = Node(X, Y, "esquerda")
+        return engine.bfs(raiz, objetivo)
+
+    def _exec_otimizado_benchmark():
+        engine = SearchEngine(X, Y, Z, pasta_dados=PASTA_DADOS, arquivo_grafo=ARQUIVO_GRAFO, pickle_module=pickle)
+        raiz = Node(X, Y, "esquerda")
+        return engine.bfs_memory_optimized(raiz, objetivo)
+
+    tempo_normal_medio, tempo_otimizado_medio = medir_tempos_justos(_exec_normal_benchmark, _exec_otimizado_benchmark)
+
+    # Comparação
+    print("\n" + "="*60)
+    print("📊 COMPARAÇÃO DOS RESULTADOS")
+    print("="*60)
+    if resultado_normal["sucesso"] and resultado_otimizado["sucesso"]:
+        tempo_diff = abs(tempo_normal_medio - tempo_otimizado_medio)
+        mem_diff = abs(resultado_normal["memoria"] - resultado_otimizado["memoria"])
+        mem_economia = ((resultado_normal["memoria"] - resultado_otimizado["memoria"]) / resultado_normal["memoria"] * 100) if resultado_normal["memoria"] > 0 else 0
+        
+        print(f"⏱️  Tempo médio BFS Normal (justo): {tempo_normal_medio:.6f}s")
+        print(f"⏱️  Tempo médio BFS Otimizado (justo): {tempo_otimizado_medio:.6f}s")
+        print(f"⏱️  Diferença de tempo (média justa): {tempo_diff:.6f}s")
+        print(f"💾 Diferença de memória: {mem_diff:.2f}KB")
+        print(f"💰 Economia de memória (Otimizado): {mem_economia:.2f}%")
+        print(f"🔍 Nós explorados (Normal): {resultado_normal['visitados']}")
+        print(f"🔍 Nós explorados (Otimizado): {resultado_otimizado['visitados']}")
+    print("="*60)
 
 if __name__ == "__main__":
     main()

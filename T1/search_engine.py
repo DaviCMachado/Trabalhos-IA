@@ -138,3 +138,78 @@ class SearchEngine:
             "memoria": pico_mem / 1024,
             "visitados": self.nos_visitados
         }
+
+    def bfs_memory_optimized(self, raiz, objetivo_tupla):
+        """BFS que limpa da memória nós infrutíferos (sem filhos viáveis).
+        
+        Mantém apenas a cadeia até a solução e libera branches inúteis durante a exploração.
+        Reduz consumo de memória em problemas com muitos becos sem saída.
+        """
+        self.nos_visitados = 0
+        tracemalloc.start()
+        start_t = time.perf_counter()
+        
+        fila = deque([raiz])
+        visitados = set()
+        caminho_solucao = None
+        nos_ativos = {id(raiz): raiz}  # Mapeia id do nó para referência (para rastreamento)
+
+        while fila:
+            node_atual = fila.popleft()
+            self.nos_visitados += 1
+
+            if self.check_if_objective(node_atual, objetivo_tupla):
+                caminho_solucao = node_atual
+                tempo = time.perf_counter() - start_t
+                _, pico_mem = tracemalloc.get_traced_memory()
+                tracemalloc.stop()
+                return {
+                    "sucesso": True,
+                    "no_final": node_atual,
+                    "tempo": tempo,
+                    "memoria": pico_mem / 1024,
+                    "visitados": self.nos_visitados
+                }
+
+            estado_atual = (node_atual.canibais, node_atual.missionarios, node_atual.margem)
+            if estado_atual in visitados:
+                # Nó já visitado por outro caminho e não levou à solução
+                # Libera referência para GC
+                if id(node_atual) in nos_ativos and len(node_atual.children) == 0:
+                    del nos_ativos[id(node_atual)]
+                    node_atual.parent = None  # Quebra referência circular
+                continue
+            visitados.add(estado_atual)
+
+            # Gerar sucessores
+            next_margem = "direita" if node_atual.margem == "esquerda" else "esquerda"
+            temp_filhos_antes = len(node_atual.children)
+            
+            self.gerar_combinacoes_barco(node_atual, next_margem, visitados, fila)
+            
+            # Se nenhum filho foi gerado, este é um nó infrutífero
+            if len(node_atual.children) == temp_filhos_antes:
+                # Libera nó sem filhos
+                if id(node_atual) in nos_ativos and node_atual != raiz:
+                    del nos_ativos[id(node_atual)]
+                    # Tenta quebrar referências circulares para permitir GC
+                    if node_atual.parent:
+                        node_atual.parent.children = [
+                            child for child in node_atual.parent.children 
+                            if child != node_atual
+                        ]
+            else:
+                # Adiciona filhos ao rastreamento
+                for filho in node_atual.children:
+                    nos_ativos[id(filho)] = filho
+
+        # Fora do loop - sem solução
+        tempo = time.perf_counter() - start_t
+        _, pico_mem = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+        return {
+            "sucesso": False,
+            "tempo": tempo,
+            "memoria": pico_mem / 1024,
+            "visitados": self.nos_visitados
+        }
