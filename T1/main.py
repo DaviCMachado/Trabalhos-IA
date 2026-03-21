@@ -1,6 +1,3 @@
-from collections import deque
-import time
-import tracemalloc
 
 # Descricao do problema:
 # Há X missionarios e Y canibais no lado ESQUERDO de um rio. Há um barco que pode transportar pessoas. 
@@ -39,12 +36,27 @@ x = 5
 y = 5 
 z = 3
 
-class Node: #possui os estados
+import pickle
+import time
+import tracemalloc
+import os
+from collections import deque
+from pathlib import Path
+
+# Configurações Globais
+X, Y, Z = 9, 9, 4
+# Definimos o caminho globalmente para evitar erros de sincronização
+PASTA_DADOS = Path(__file__).parent / "data"
+
+# Assim, cada combinação de X, Y, Z gera seu próprio arquivo
+ARQUIVO_GRAFO = PASTA_DADOS / f"grafo_{X}x{Y}_z{Z}.pkl"
+
+class Node:
     def __init__(self, cani, miss, marg, acao="Estado Inicial", parent=None):
-        self.canibais = cani #na esquerda
-        self.missionarios = miss #na esquerda
-        self.margem = marg #onde o barco esta
-        self.acao = acao # Guarda a funcao de transicao
+        self.canibais = cani
+        self.missionarios = miss
+        self.margem = marg
+        self.acao = acao
         self.children = []
         self.parent = parent
 
@@ -52,158 +64,129 @@ class Node: #possui os estados
         self.children.append(child)
 
     def obter_caminho_solucao(self):
-        """Sobe a árvore a partir do nó final até à raiz para mostrar os passos"""
         caminho = []
         atual = self
         while atual:
-            caminho.append(f"[{atual.acao}] -> Esquerda: {atual.canibais}C, {atual.missionarios}M | Direita: {x - atual.canibais}C, {y - atual.missionarios}M | Margem do Barco: {atual.margem}")
+            caminho.append(f"[{atual.acao}] -> Esq: {atual.canibais}C, {atual.missionarios}M | Dir: {X - atual.canibais}C, {Y - atual.missionarios}M | Barco: {atual.margem}")
             atual = atual.parent
-        return caminho[::-1] # Inverte a lista para mostrar do inicio ao fim
-
+        return caminho[::-1]
 
 class SearchEngine:
-
     def __init__(self):
         self.nos_visitados = 0
 
-    def conferir_movimento_valido(self, cani_esquerda, miss_esquerda):
-        cani_direita = x - cani_esquerda
-        miss_direita = y - miss_esquerda
-
-        # Impede números negativos (alguém tentar mover mais pessoas do que as que existem)
-        if cani_esquerda < 0 or miss_esquerda < 0 or cani_direita < 0 or miss_direita < 0:
-            return False
-
-        if miss_esquerda > 0 and cani_esquerda > miss_esquerda:
-            return False
-        if miss_direita > 0 and cani_direita > miss_direita:
-            return False
-        
+    def conferir_movimento_valido(self, cani_esq, miss_esq):
+        cani_dir, miss_dir = X - cani_esq, Y - miss_esq
+        if cani_esq < 0 or miss_esq < 0 or cani_dir < 0 or miss_dir < 0: return False
+        if (miss_esq > 0 and cani_esq > miss_esq) or (miss_dir > 0 and cani_dir > miss_dir): return False
         return True
 
-
-    def bfs(self, node_inicial, node_final):
-        """Executa a Busca em Largura (BFS) completa"""
+    def gerar_e_salvar_grafo(self, raiz):
+        """Explora o espaço de estados e salva no diretório configurado"""
+        fila = deque([raiz])
+        visitados = {(raiz.canibais, raiz.missionarios, raiz.margem)}
         
-        fila = deque([node_inicial])
-        visitados = set() 
+        while fila:
+            atual = fila.popleft()
+            prox_margem = "direita" if atual.margem == "esquerda" else "esquerda"
+
+            for b_cani in range(Z + 1):
+                for b_miss in range(Z + 1):
+                    if 0 < b_cani + b_miss <= Z:
+                        novo_c = atual.canibais - b_cani if prox_margem == "direita" else atual.canibais + b_cani
+                        novo_m = atual.missionarios - b_miss if prox_margem == "direita" else atual.missionarios + b_miss
+                        
+                        if self.conferir_movimento_valido(novo_c, novo_m):
+                            estado = (novo_c, novo_m, prox_margem)
+                            if estado not in visitados:
+                                acao = f"Moveu {b_cani}C e {b_miss}M para {prox_margem.upper()}"
+                                filho = Node(novo_c, novo_m, prox_margem, acao, atual)
+                                atual.add(filho)
+                                visitados.add(estado)
+                                fila.append(filho)
+        
+        # Garante a criação da pasta antes de salvar
+        PASTA_DADOS.mkdir(exist_ok=True)
+        with open(ARQUIVO_GRAFO, "wb") as f:
+            pickle.dump(raiz, f)
+        
+        return raiz
+
+    def bfs(self, raiz, objetivo_tupla):
         self.nos_visitados = 0
-        
-        print("\n" + "="*60)
-        print("🚀 INICIANDO BUSCA EM LARGURA (BFS)")
-        print(f"Parâmetros: {x} Canibais, {y} Missionários | Capacidade Barco: {z}")
-        print("="*60 + "\n")
-
-        # Inicia o rastreamento de memória e tempo
         tracemalloc.start()
-        start_time = time.perf_counter()
+        start_t = time.perf_counter()
+        
+        fila = deque([raiz])
+        visitados = set()
 
         while fila:
-            node_atual = fila.popleft()
+            atual = fila.popleft()
             self.nos_visitados += 1
-
-            # 1. Verifica se chegou ao estado final
-            if (node_atual.canibais == node_final.canibais and 
-                node_atual.missionarios == node_final.missionarios and 
-                node_atual.margem == node_final.margem):
-                
-                # Finaliza rastreamento
-                end_time = time.perf_counter()
-                _, peak_mem = tracemalloc.get_traced_memory()
+            
+            if (atual.canibais, atual.missionarios, atual.margem) == objetivo_tupla:
+                tempo = time.perf_counter() - start_t
+                _, pico_mem = tracemalloc.get_traced_memory()
                 tracemalloc.stop()
-                
-                tempo_gasto = end_time - start_time
-                mem_kb = peak_mem / 1024
-                
-                print("\n" + "="*60)
-                print(f"🎉 SOLUÇÃO ENCONTRADA! (Nós explorados: {self.nos_visitados})")
-                print(f"⏱️  Tempo de execução: {tempo_gasto:.6f} segundos")
-                print(f"💾 Memória utilizada (Pico): {mem_kb:.2f} KB")
-                print("="*60 + "\n")
-                return node_atual
+                return {
+                    "sucesso": True,
+                    "no_final": atual,
+                    "tempo": tempo,
+                    "memoria": pico_mem / 1024,
+                    "visitados": self.nos_visitados
+                }
 
-            # 2. Marca o estado atual como visitado 
-            estado_atual = (node_atual.canibais, node_atual.missionarios, node_atual.margem)
-            if estado_atual in visitados:
-                continue
-            visitados.add(estado_atual)
+            visitados.add((atual.canibais, atual.missionarios, atual.margem))
+            for filho in atual.children:
+                if (filho.canibais, filho.missionarios, filho.margem) not in visitados:
+                    fila.append(filho)
 
-            # 3. Descobre para onde o barco vai
-            next_margem = "direita" if node_atual.margem == "esquerda" else "esquerda"
-
-            # 4. Gera todas as combinações de barco possíveis
-            for barco_cani in range(z + 1):
-                for barco_miss in range(z + 1):
-                    if barco_cani + barco_miss > z or barco_cani + barco_miss == 0:
-                        continue  
-                    
-                    # 5. Calcula os novos valores na margem esquerda
-                    if next_margem == "direita":
-                        novo_cani = node_atual.canibais - barco_cani
-                        novo_miss = node_atual.missionarios - barco_miss
-                        acao_str = f"Moveu {barco_cani}C e {barco_miss}M para a DIREITA"
-                    else:
-                        novo_cani = node_atual.canibais + barco_cani
-                        novo_miss = node_atual.missionarios + barco_miss
-                        acao_str = f"Moveu {barco_cani}C e {barco_miss}M para a ESQUERDA"
-
-                    # 6. Valida o movimento e gera o filho
-                    if self.conferir_movimento_valido(novo_cani, novo_miss):
-                        novo_estado_tuplo = (novo_cani, novo_miss, next_margem)
-                        
-                        # Apenas adicionamos à fila se ainda não visitámos este estado
-                        if novo_estado_tuplo not in visitados:
-                            filho = Node(novo_cani, novo_miss, next_margem, acao_str, node_atual)
-                            node_atual.add(filho)
-                            fila.append(filho)
-
-        # Finaliza rastreamento se não encontrou solução
-        end_time = time.perf_counter()
-        _, peak_mem = tracemalloc.get_traced_memory()
         tracemalloc.stop()
-        
-        tempo_gasto = end_time - start_time
-        mem_kb = peak_mem / 1024
+        return {"sucesso": False, "tempo": time.perf_counter() - start_t}
 
-        # Se a fila esvaziar e não tiver retornado o 'node_atual', é porque não há solução
-        print("\n" + "="*60)
-        print(f"❌ NÃO HÁ SOLUÇÃO POSSÍVEL para esta configuração.")
-        print(f"Todos os caminhos válidos foram explorados ({self.nos_visitados} estados analisados).")
-        print(f"⏱️  Tempo de execução: {tempo_gasto:.6f} segundos")
-        print(f"💾 Memória utilizada (Pico): {mem_kb:.2f} KB")
-        print("="*60 + "\n")
-        return None
-
-
+def imprimir_relatorio(res):
+    print("\n" + "="*60)
+    if res["sucesso"]:
+        print(f"🎉 SOLUÇÃO ENCONTRADA!")
+        print(f"⏱️  Tempo: {res['tempo']:.6f}s | 💾 Memória: {res['memoria']:.2f}KB")
+        print(f"🔍 Nós explorados: {res['visitados']}")
+        print("-" * 60)
+        passos = res["no_final"].obter_caminho_solucao()
+        for i, p in enumerate(passos):
+            print(f"Passo {i}: {p}")
+    else:
+        print("❌ Não foi possível encontrar uma solução no grafo carregado.")
+    print("="*60)
 
 def main():
-    nodeInicial = Node(x, y, "esquerda")
-    nodeFinal = Node(0, 0, "direita")
-    
     engine = SearchEngine()
+    raiz = None
 
-    # Executa a busca
-    no_solucao = engine.bfs(nodeInicial, nodeFinal)
+    if ARQUIVO_GRAFO.exists():
+        print(f"📂 Arquivo de grafo detectado em: {ARQUIVO_GRAFO}")
+        print("[1] Usar grafo existente (mais rápido)")
+        print("[2] Gerar novo grafo (sobrescrever)")
+        opcao = input("Escolha uma opção: ")
 
-    # Imprime o passo a passo APENAS se houver solução
-    if no_solucao:
-        print("--- CAMINHO PASSO A PASSO ATÉ AO OBJETIVO ---")
-        passos = no_solucao.obter_caminho_solucao()
-        for i, passo in enumerate(passos):
-            print(f"Passo {i}: {passo}")
+        if opcao == "2":
+            print("⚙️  Gerando novo espaço de estados...")
+            raiz_original = Node(X, Y, "esquerda")
+            raiz = engine.gerar_e_salvar_grafo(raiz_original)
+        else:
+            print("📥 Carregando dados do disco...")
+            with open(ARQUIVO_GRAFO, "rb") as f:
+                raiz = pickle.load(f)
+    else:
+        print(f"⚠️  Grafo não encontrado. Criando base de dados inicial...")
+        raiz_original = Node(X, Y, "esquerda")
+        raiz = engine.gerar_e_salvar_grafo(raiz_original)
 
-    # while (True):
-    #     choice = input("Escolha o tipo de busca: 1 - bfs, 2 - djikstra, 3 - alphastar\n")
-    #     match choice:
-    #         case 1:
-    #             engine.bfs()
-    #         case 2: 
-    #             engine.djikstra()
-    #         case 3:
-    #             engine.alphastar()
+    # Execução da Busca
+    objetivo = (0, 0, "direita")
+    resultado = engine.bfs(raiz, objetivo)
 
-# gerar relatorio pdf com metricas como tempo e memoria utilizada, alem de nos visitados, fator de expansão, etc 
-
+    # Relatório
+    imprimir_relatorio(resultado)
 
 if __name__ == "__main__":
     main()
