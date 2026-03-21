@@ -32,117 +32,18 @@
 # x = 4, y = 4, z = 2 ---> Vai dar Sem Solução (limite matemático excedido).
 # x = 4, y = 4, z = 3 ---> Vai dar Solução Encontrada (porque para barco de tamanho 3, o limite é 5).
 
-x = 5 
-y = 5 
-z = 3
-
 import pickle
-import time
-import tracemalloc
-import os
-from collections import deque
 from pathlib import Path
 
 # Configurações Globais
-X, Y, Z = 9, 9, 4
+X, Y, Z = 4, 4, 3
 # Definimos o caminho globalmente para evitar erros de sincronização
 PASTA_DADOS = Path(__file__).parent / "data"
 
 # Assim, cada combinação de X, Y, Z gera seu próprio arquivo
 ARQUIVO_GRAFO = PASTA_DADOS / f"grafo_{X}x{Y}_z{Z}.pkl"
-
-class Node:
-    def __init__(self, cani, miss, marg, acao="Estado Inicial", parent=None):
-        self.canibais = cani
-        self.missionarios = miss
-        self.margem = marg
-        self.acao = acao
-        self.children = []
-        self.parent = parent
-
-    def add(self, child):
-        self.children.append(child)
-
-    def obter_caminho_solucao(self):
-        caminho = []
-        atual = self
-        while atual:
-            caminho.append(f"[{atual.acao}] -> Esq: {atual.canibais}C, {atual.missionarios}M | Dir: {X - atual.canibais}C, {Y - atual.missionarios}M | Barco: {atual.margem}")
-            atual = atual.parent
-        return caminho[::-1]
-
-class SearchEngine:
-    def __init__(self):
-        self.nos_visitados = 0
-
-    def conferir_movimento_valido(self, cani_esq, miss_esq):
-        cani_dir, miss_dir = X - cani_esq, Y - miss_esq
-        if cani_esq < 0 or miss_esq < 0 or cani_dir < 0 or miss_dir < 0: return False
-        if (miss_esq > 0 and cani_esq > miss_esq) or (miss_dir > 0 and cani_dir > miss_dir): return False
-        return True
-
-    def gerar_e_salvar_grafo(self, raiz):
-        """Explora o espaço de estados e salva no diretório configurado"""
-        fila = deque([raiz])
-        visitados = {(raiz.canibais, raiz.missionarios, raiz.margem)}
-        
-        while fila:
-            atual = fila.popleft()
-            prox_margem = "direita" if atual.margem == "esquerda" else "esquerda"
-
-            for b_cani in range(Z + 1):
-                for b_miss in range(Z + 1):
-                    if 0 < b_cani + b_miss <= Z:
-                        novo_c = atual.canibais - b_cani if prox_margem == "direita" else atual.canibais + b_cani
-                        novo_m = atual.missionarios - b_miss if prox_margem == "direita" else atual.missionarios + b_miss
-                        
-                        if self.conferir_movimento_valido(novo_c, novo_m):
-                            estado = (novo_c, novo_m, prox_margem)
-                            if estado not in visitados:
-                                acao = f"Moveu {b_cani}C e {b_miss}M para {prox_margem.upper()}"
-                                filho = Node(novo_c, novo_m, prox_margem, acao, atual)
-                                atual.add(filho)
-                                visitados.add(estado)
-                                fila.append(filho)
-        
-        # Garante a criação da pasta antes de salvar
-        PASTA_DADOS.mkdir(exist_ok=True)
-        with open(ARQUIVO_GRAFO, "wb") as f:
-            pickle.dump(raiz, f)
-        
-        return raiz
-
-    def bfs(self, raiz, objetivo_tupla):
-        self.nos_visitados = 0
-        tracemalloc.start()
-        start_t = time.perf_counter()
-        
-        fila = deque([raiz])
-        visitados = set()
-
-        while fila:
-            atual = fila.popleft()
-            self.nos_visitados += 1
-            
-            if (atual.canibais, atual.missionarios, atual.margem) == objetivo_tupla:
-                tempo = time.perf_counter() - start_t
-                _, pico_mem = tracemalloc.get_traced_memory()
-                tracemalloc.stop()
-                return {
-                    "sucesso": True,
-                    "no_final": atual,
-                    "tempo": tempo,
-                    "memoria": pico_mem / 1024,
-                    "visitados": self.nos_visitados
-                }
-
-            visitados.add((atual.canibais, atual.missionarios, atual.margem))
-            for filho in atual.children:
-                if (filho.canibais, filho.missionarios, filho.margem) not in visitados:
-                    fila.append(filho)
-
-        tracemalloc.stop()
-        return {"sucesso": False, "tempo": time.perf_counter() - start_t}
+from node import Node
+from search_engine import SearchEngine
 
 def imprimir_relatorio(res):
     print("\n" + "="*60)
@@ -151,7 +52,7 @@ def imprimir_relatorio(res):
         print(f"⏱️  Tempo: {res['tempo']:.6f}s | 💾 Memória: {res['memoria']:.2f}KB")
         print(f"🔍 Nós explorados: {res['visitados']}")
         print("-" * 60)
-        passos = res["no_final"].obter_caminho_solucao()
+        passos = res["no_final"].obter_caminho_solucao(X, Y, Z)
         for i, p in enumerate(passos):
             print(f"Passo {i}: {p}")
     else:
@@ -159,7 +60,7 @@ def imprimir_relatorio(res):
     print("="*60)
 
 def main():
-    engine = SearchEngine()
+    engine = SearchEngine(X, Y, Z, pasta_dados=PASTA_DADOS, arquivo_grafo=ARQUIVO_GRAFO, pickle_module=pickle)
     raiz = None
 
     if ARQUIVO_GRAFO.exists():
