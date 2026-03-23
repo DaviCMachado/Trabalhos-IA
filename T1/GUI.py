@@ -1,4 +1,5 @@
 import pickle
+import sys
 import re
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -16,30 +17,56 @@ class NodeUnpickler(pickle.Unpickler):
         return super().find_class(module, name)
 
 def hierarquia_pos(G, root=None, width=1., vert_gap=0.2, vert_loc=0, xcenter=0.5):
-    """Calcula posições para um layout de árvore hierárquico."""
+    """Calcula posições hierárquicas sem recursão, robusto para árvores profundas."""
+    if len(G) == 0:
+        return {}
+
+    if root is None:
+        root = next(iter(G.nodes()))
+
     if not nx.is_tree(G):
-        T = nx.dfs_tree(G, root) 
+        T = nx.dfs_tree(G, root)
     else:
         T = G
 
-    def _hierarchy_pos(G, node, left, right, vert_gap, vert_loc, xcenter, pos=None, parent=None):
-        if pos is None:
-            pos = {node: (xcenter, vert_loc)}
-        else:
-            pos[node] = (xcenter, vert_loc)
-        
-        children = list(G.neighbors(node))
-        if len(children) != 0:
-            dx = (right - left) / len(children) 
-            nextx = left + dx/2
-            for child in children:
-                pos = _hierarchy_pos(G, child, left, left + dx, vert_gap, 
-                                    vert_loc - vert_gap, nextx, pos=pos, parent=node)
-                left += dx
-                nextx += dx
-        return pos
+    # Níveis por BFS (iterativo)
+    niveis = {}
+    fila = deque([(root, 0)])
+    visitados = {root}
 
-    return _hierarchy_pos(T, root, 0, width, vert_gap, vert_loc, xcenter)
+    while fila:
+        no, nivel = fila.popleft()
+        niveis.setdefault(nivel, []).append(no)
+        for filho in T.successors(no):
+            if filho not in visitados:
+                visitados.add(filho)
+                fila.append((filho, nivel + 1))
+
+    # Caso a árvore tenha nós desconectados do root por qualquer motivo,
+    # posiciona-os após os níveis conhecidos para evitar KeyError.
+    if len(visitados) < len(T.nodes):
+        nivel_extra = (max(niveis.keys()) + 1) if niveis else 0
+        for no in T.nodes:
+            if no not in visitados:
+                niveis.setdefault(nivel_extra, []).append(no)
+
+    pos = {}
+    x_inicio = xcenter - (width / 2)
+
+    for nivel in sorted(niveis.keys()):
+        nos_nivel = niveis[nivel]
+        quantidade = len(nos_nivel)
+        if quantidade == 1:
+            xs = [xcenter]
+        else:
+            passo = width / (quantidade - 1)
+            xs = [x_inicio + i * passo for i in range(quantidade)]
+
+        y = vert_loc - nivel * vert_gap
+        for no, x in zip(nos_nivel, xs):
+            pos[no] = (x, y)
+
+    return pos
 
 class BFSVisualizer:
     def __init__(self, arquivo_grafo, ax=None, tipo="normal", capacidade_barco=None, synchronizer=None):
@@ -76,7 +103,47 @@ class BFSVisualizer:
 
     def _carregar_grafo(self):
         with open(self.arquivo, "rb") as f:
-            return NodeUnpickler(f).load()
+            limite_original = sys.getrecursionlimit()
+            try:
+                sys.setrecursionlimit(max(limite_original, 100_000))
+                dados = NodeUnpickler(f).load()
+            finally:
+                sys.setrecursionlimit(limite_original)
+
+        if isinstance(dados, dict) and dados.get("format") == "flat_graph_v1":
+            return self._reconstruir_grafo_flat(dados)
+        return dados
+
+    def _reconstruir_grafo_flat(self, dados):
+        adjacency = dados["adjacency"]
+        root_state = tuple(dados["root"])
+
+        raiz = main.Node(root_state[0], root_state[1], root_state[2])
+        nodes = {root_state: raiz}
+        fila_estados = deque([root_state])
+
+        while fila_estados:
+            estado_atual = fila_estados.popleft()
+            node_atual = nodes[estado_atual]
+
+            for filho_estado, acao in adjacency.get(estado_atual, []):
+                filho_estado = tuple(filho_estado)
+                if filho_estado not in nodes:
+                    nodes[filho_estado] = main.Node(
+                        filho_estado[0],
+                        filho_estado[1],
+                        filho_estado[2],
+                        acao,
+                        node_atual,
+                    )
+                    fila_estados.append(filho_estado)
+
+                filho = nodes[filho_estado]
+                if filho.parent is None:
+                    filho.parent = node_atual
+                node_atual.add(filho)
+
+        return raiz
 
     def _mapear_ordem_bfs(self, raiz):
         fila = deque([raiz])

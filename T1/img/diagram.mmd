@@ -1,0 +1,10 @@
+flowchart TD
+    A[Início] --> B["Leitura dos Cenários (scenarios.csv)"]
+    B --> C[Para cada cenário:]
+    C --> D1[Executa BFS]
+    C --> D2[Executa BFS Otimizado]
+    D1 --> E[Coleta tempo/memória]
+    D2 --> E
+    E --> F["Salva resultados (scenarios.json)"]
+    F --> G["Gera gráficos (plot_scenarios_benchmark.py)"]
+    G --> H[Fim]

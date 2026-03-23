@@ -1,5 +1,6 @@
 from collections import deque
 import pickle
+import sys
 import time
 import tracemalloc
 
@@ -36,6 +37,8 @@ class SearchEngine:
         """Explora o espaço de estados e salva no diretório configurado"""
         fila = deque([raiz])
         visitados = {(raiz.canibais, raiz.missionarios, raiz.margem)}
+        raiz_estado = (raiz.canibais, raiz.missionarios, raiz.margem)
+        adjacencia = {raiz_estado: []}
         
         while fila:
             atual = fila.popleft()
@@ -53,13 +56,30 @@ class SearchEngine:
                                 acao = f"Moveu {b_cani}C e {b_miss}M para {prox_margem.upper()}"
                                 filho = Node(novo_c, novo_m, prox_margem, acao, atual)
                                 atual.add(filho)
+                                estado_atual = (atual.canibais, atual.missionarios, atual.margem)
+                                adjacencia.setdefault(estado_atual, []).append((
+                                    estado,
+                                    acao,
+                                ))
+                                adjacencia.setdefault(estado, [])
                                 visitados.add(estado)
                                 fila.append(filho)
         
         # Garante a criação da pasta antes de salvar
         self.PASTA_DADOS.mkdir(exist_ok=True)
+        payload = {
+            "format": "flat_graph_v1",
+            "meta": {"X": self.X, "Y": self.Y, "Z": self.Z},
+            "root": raiz_estado,
+            "adjacency": adjacencia,
+        }
         with open(self.ARQUIVO_GRAFO, "wb") as f:
-            self.pickle.dump(raiz, f)
+            limite_original = sys.getrecursionlimit()
+            try:
+                sys.setrecursionlimit(max(limite_original, 100_000))
+                self.pickle.dump(payload, f)
+            finally:
+                sys.setrecursionlimit(limite_original)
         
         return raiz
 
@@ -102,20 +122,29 @@ class SearchEngine:
         
         fila = deque([raiz])
         visitados = set()
+        iteracoes_memoria_real = []
+        serie_memoria_real = []
 
         while fila:
             node_atual = fila.popleft()
             self.nos_visitados += 1
 
+            mem_loop_atual, _ = tracemalloc.get_traced_memory()
+            iteracoes_memoria_real.append(self.nos_visitados)
+            serie_memoria_real.append(mem_loop_atual / 1024)
+
             if self.check_if_objective(node_atual, objetivo_tupla):
                 tempo = time.perf_counter() - start_t
-                _, pico_mem = tracemalloc.get_traced_memory()
+                mem_atual, pico_mem = tracemalloc.get_traced_memory()
                 tracemalloc.stop()
                 return {
                     "sucesso": True,
                     "no_final": node_atual,
                     "tempo": tempo,
                     "memoria": pico_mem / 1024,
+                    "memoria_atual": mem_atual / 1024,
+                    "iteracoes_memoria_real": iteracoes_memoria_real,
+                    "serie_memoria_real": serie_memoria_real,
                     "visitados": self.nos_visitados
                 }
 
@@ -130,86 +159,99 @@ class SearchEngine:
 
         # Fora do loop
         tempo = time.perf_counter() - start_t
-        _, pico_mem = tracemalloc.get_traced_memory()
+        mem_atual, pico_mem = tracemalloc.get_traced_memory()
         tracemalloc.stop()
         return {
             "sucesso": False,
             "tempo": tempo,
             "memoria": pico_mem / 1024,
+            "memoria_atual": mem_atual / 1024,
+            "iteracoes_memoria_real": iteracoes_memoria_real,
+            "serie_memoria_real": serie_memoria_real,
             "visitados": self.nos_visitados
         }
 
     def bfs_memory_optimized(self, raiz, objetivo_tupla):
-        """BFS que limpa da memória nós infrutíferos (sem filhos viáveis).
-        
-        Mantém apenas a cadeia até a solução e libera branches inúteis durante a exploração.
-        Reduz consumo de memória em problemas com muitos becos sem saída.
+        """BFS com mesma estrutura do normal, mas limpando nós infrutíferos.
+
+        A única diferença em relação ao BFS normal é tentar remover da árvore
+        nós sem filhos viáveis após expansão, para reduzir pressão de memória.
+        A limpeza acontece por níveis da BFS.
         """
         self.nos_visitados = 0
         tracemalloc.start()
         start_t = time.perf_counter()
-        
-        fila = deque([raiz])
+
+        fronteira = deque([raiz])
         visitados = set()
-        caminho_solucao = None
-        nos_ativos = {id(raiz): raiz}  # Mapeia id do nó para referência (para rastreamento)
+        iteracoes_memoria_real = []
+        serie_memoria_real = []
 
-        while fila:
-            node_atual = fila.popleft()
-            self.nos_visitados += 1
+        def podar_no_infrutifero(no):
+            if no is raiz:
+                return
+            pai = no.parent
+            if pai is not None:
+                pai.children = [child for child in pai.children if child is not no]
+            no.parent = None
 
-            if self.check_if_objective(node_atual, objetivo_tupla):
-                caminho_solucao = node_atual
-                tempo = time.perf_counter() - start_t
-                _, pico_mem = tracemalloc.get_traced_memory()
-                tracemalloc.stop()
-                return {
-                    "sucesso": True,
-                    "no_final": node_atual,
-                    "tempo": tempo,
-                    "memoria": pico_mem / 1024,
-                    "visitados": self.nos_visitados
-                }
+        while fronteira:
+            proxima_fronteira = deque()
+            nos_nivel_atual = list(fronteira)
 
-            estado_atual = (node_atual.canibais, node_atual.missionarios, node_atual.margem)
-            if estado_atual in visitados:
-                # Nó já visitado por outro caminho e não levou à solução
-                # Libera referência para GC
-                if id(node_atual) in nos_ativos and len(node_atual.children) == 0:
-                    del nos_ativos[id(node_atual)]
-                    node_atual.parent = None  # Quebra referência circular
-                continue
-            visitados.add(estado_atual)
+            while fronteira:
+                node_atual = fronteira.popleft()
+                self.nos_visitados += 1
 
-            # Gerar sucessores
-            next_margem = "direita" if node_atual.margem == "esquerda" else "esquerda"
-            temp_filhos_antes = len(node_atual.children)
-            
-            self.gerar_combinacoes_barco(node_atual, next_margem, visitados, fila)
-            
-            # Se nenhum filho foi gerado, este é um nó infrutífero
-            if len(node_atual.children) == temp_filhos_antes:
-                # Libera nó sem filhos
-                if id(node_atual) in nos_ativos and node_atual != raiz:
-                    del nos_ativos[id(node_atual)]
-                    # Tenta quebrar referências circulares para permitir GC
-                    if node_atual.parent:
-                        node_atual.parent.children = [
-                            child for child in node_atual.parent.children 
-                            if child != node_atual
-                        ]
-            else:
-                # Adiciona filhos ao rastreamento
-                for filho in node_atual.children:
-                    nos_ativos[id(filho)] = filho
+                mem_loop_atual, _ = tracemalloc.get_traced_memory()
+                iteracoes_memoria_real.append(self.nos_visitados)
+                serie_memoria_real.append(mem_loop_atual / 1024)
+
+                if self.check_if_objective(node_atual, objetivo_tupla):
+                    tempo = time.perf_counter() - start_t
+                    mem_atual, pico_mem = tracemalloc.get_traced_memory()
+                    tracemalloc.stop()
+                    return {
+                        "sucesso": True,
+                        "no_final": node_atual,
+                        "tempo": tempo,
+                        "memoria": pico_mem / 1024,
+                        "memoria_atual": mem_atual / 1024,
+                        "iteracoes_memoria_real": iteracoes_memoria_real,
+                        "serie_memoria_real": serie_memoria_real,
+                        "visitados": self.nos_visitados
+                    }
+
+                estado_atual = (node_atual.canibais, node_atual.missionarios, node_atual.margem)
+                if estado_atual in visitados:
+                    continue
+                visitados.add(estado_atual)
+
+                filhos_antes = len(node_atual.children)
+                next_margem = "direita" if node_atual.margem == "esquerda" else "esquerda"
+                self.gerar_combinacoes_barco(node_atual, next_margem, visitados, proxima_fronteira)
+
+                if len(node_atual.children) == filhos_antes:
+                    podar_no_infrutifero(node_atual)
+
+            # Limpeza adicional ao fim do nível: remove nós já processados que
+            # acabaram sem filhos após podas locais no mesmo nível.
+            for no in nos_nivel_atual:
+                if len(no.children) == 0:
+                    podar_no_infrutifero(no)
+
+            fronteira = proxima_fronteira
 
         # Fora do loop - sem solução
         tempo = time.perf_counter() - start_t
-        _, pico_mem = tracemalloc.get_traced_memory()
+        mem_atual, pico_mem = tracemalloc.get_traced_memory()
         tracemalloc.stop()
         return {
             "sucesso": False,
             "tempo": tempo,
             "memoria": pico_mem / 1024,
+            "memoria_atual": mem_atual / 1024,
+            "iteracoes_memoria_real": iteracoes_memoria_real,
+            "serie_memoria_real": serie_memoria_real,
             "visitados": self.nos_visitados
         }

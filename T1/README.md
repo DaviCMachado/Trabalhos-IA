@@ -1,5 +1,39 @@
-Especificar nossa pesquisa quanto ao problema dos missionários e canibais, descrever o problema e os cenários explorados
 
+# Missionários e Canibais — Relatório e Fluxo do Código
+
+## 🧩 Introdução
+
+O problema dos Missionários e Canibais é um clássico da lógica e IA: transportar missionários e canibais de uma margem do rio para outra, sem nunca deixar missionários em menor número que canibais em qualquer margem.
+
+## 🚦 Modelagem e Cenários
+
+- **Estados**: (M, C, B) — missionários, canibais na esquerda, posição do barco.
+- **Ações**: mover até Z pessoas (barco) respeitando as regras de segurança.
+- **Cenários**: lidos de `scenarios.csv`, variando quantidades e capacidade do barco.
+
+## ⚙️ Fluxo do Código
+
+1. **Leitura dos Cenários**: O script lê todos os cenários do arquivo CSV.
+2. **Execução dos Algoritmos**: Para cada cenário, executa BFS normal e BFS otimizado.
+3. **Benchmark**: Mede tempo e memória de cada abordagem, com rodadas alternadas para justiça estatística.
+4. **Armazenamento**: Resultados salvos em `scenarios.json`.
+5. **Visualização**: O script `plot_scenarios_benchmark.py` gera gráficos interativos dos resultados.
+
+## 📊 Diagrama do Fluxo
+
+![Diagrama do Fluxo](img/diagram.png)
+
+## ▶️ Como Usar
+
+1. Edite/adicione cenários em `scenarios.csv` (formato: missionarios,canibais,cap_barco).
+2. Execute `run_benchmarks.py` para gerar resultados.
+3. Execute `plot_scenarios_benchmark.py` para visualizar os gráficos.
+
+---
+
+> Para detalhes matemáticos e explicações, veja o restante deste README.
+
+---
 
 🧠 O Problema dos Missionários e Canibais
 O problema dos Missionários e Canibais é um clássico puzzle de lógica frequentemente utilizado na Ciência da Computação para introduzir conceitos de Inteligência Artificial e algoritmos de busca.
@@ -26,24 +60,24 @@ B: Posição do barco (1 para Esquerda, 0 para Direita).
 
 (A margem direita é deduzida implicitamente: Missionários na direita = X - M, Canibais na direita = Y - C).
 
-2. Estado Inicial
+1. Estado Inicial
 É o ponto de partida do nosso algoritmo, onde todos estão na margem esquerda.
 
 Representação: (X, Y, 1)
 
-3. Estado Objetivo (Meta)
+1. Estado Objetivo (Meta)
 É a condição de parada. O objetivo é alcançado quando todos estão na margem direita, ou seja, a margem esquerda está vazia.
 
 Representação: (0, 0, 0)
 
-4. Ações e Transições
+1. Ações e Transições
 As ações definem como podemos mudar de um estado para outro. Neste problema, a ação é "mover m missionários e c canibais no barco".
 
 Regra de Transição: Se o barco está na esquerda, subtraímos (m, c) do estado atual. Se o barco está na direita, adicionamos (m, c) ao estado atual.
 
 Restrição de Capacidade: A soma das pessoas no barco deve ser maior que 0 e menor ou igual à capacidade do barco: 1 <= (m + c) <= Z.
 
-5. Validação de Estados (Função de Custo/Poda)
+1. Validação de Estados (Função de Custo/Poda)
 O algoritmo gerará muitas combinações, mas nem todas são permitidas. Antes de aceitar um novo estado (nó) na nossa árvore de busca, aplicamos as seguintes regras para garantir que é um estado válido:
 
 Não pode haver números negativos de pessoas.

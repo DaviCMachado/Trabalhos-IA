@@ -36,8 +36,8 @@ import pickle
 import gc
 from pathlib import Path
 
-# Configurações Globais
-X, Y, Z = 5, 5, 3
+# Configurações Globais: Missionários, Canibais e Capacidade do Barco
+X, Y, Z = 100, 100, 4
 # Definimos o caminho globalmente para evitar erros de sincronização
 PASTA_DADOS = Path(__file__).parent / "data"
 ARQUIVO_GRAFO = PASTA_DADOS / f"grafo_{X}x{Y}_z{Z}.pkl"
@@ -159,9 +159,11 @@ def main():
         mem_diff = abs(resultado_normal["memoria"] - resultado_otimizado["memoria"])
         mem_economia = ((resultado_normal["memoria"] - resultado_otimizado["memoria"]) / resultado_normal["memoria"] * 100) if resultado_normal["memoria"] > 0 else 0
         
-        print(f"⏱️  Tempo médio BFS Normal (justo): {tempo_normal_medio:.6f}s")
-        print(f"⏱️  Tempo médio BFS Otimizado (justo): {tempo_otimizado_medio:.6f}s")
-        print(f"⏱️  Diferença de tempo (média justa): {tempo_diff:.6f}s")
+        print(f"⏱️  Tempo médio BFS Normal: {tempo_normal_medio:.6f}s")
+        print(f"⏱️  Tempo médio BFS Otimizado: {tempo_otimizado_medio:.6f}s")
+        print(f"⏱️  Diferença de tempo (média): {tempo_diff:.6f}s")
+        print(f"💾 Pico de memória BFS Normal: {resultado_normal['memoria']:.2f}KB")
+        print(f"💾 Pico de memória BFS Otimizado: {resultado_otimizado['memoria']:.2f}KB")
         print(f"💾 Diferença de memória: {mem_diff:.2f}KB")
         print(f"💰 Economia de memória (Otimizado): {mem_economia:.2f}%")
         print(f"🔍 Nós explorados (Normal): {resultado_normal['visitados']}")

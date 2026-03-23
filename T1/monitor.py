@@ -1,18 +1,9 @@
 import pickle
-import tracemalloc
 import matplotlib.pyplot as plt
-import time
 import gc
-from collections import deque
 from pathlib import Path
-import main  # Mantém classe Node disponível para o pickle (main.Node)
-
-
-class NodeUnpickler(pickle.Unpickler):
-    def find_class(self, module, name):
-        if module == "__main__" and name == "Node":
-            return main.Node
-        return super().find_class(module, name)
+from search_engine import SearchEngine
+from node import Node
 
 
 def medir_tempos_justos(executar_normal, executar_otimizado, rodadas=8, aquecimento=2):
@@ -43,6 +34,16 @@ def medir_tempos_justos(executar_normal, executar_otimizado, rodadas=8, aquecime
 
     return media_normal, media_otimizado
 
+
+def executar_busca(tipo, X, Y, Z, arquivo_grafo):
+    objetivo = (0, 0, "direita")
+    engine = SearchEngine(X, Y, Z, arquivo_grafo=arquivo_grafo, pickle_module=pickle)
+    raiz = Node(X, Y, "esquerda")
+
+    if tipo == "otimizado":
+        return engine.bfs_memory_optimized(raiz, objetivo)
+    return engine.bfs(raiz, objetivo)
+
 class PerformanceMonitor:
     def __init__(self, arquivo_grafo, tipo="normal", X=None, Y=None, Z=None, verbose=True):
         self.arquivo = arquivo_grafo
@@ -50,69 +51,71 @@ class PerformanceMonitor:
         self.X = X
         self.Y = Y
         self.Z = Z
-        self.raiz = self._carregar_grafo()
         self.iteracoes = []
         self.memorias = []
         self.tempo_execucao = 0.0
+        self.resultado = None
         
         if verbose:
             print(f"📊 Analisando consumo de memória por iteração ({tipo})...")
-        self._analisar_performance()
-
-    def _carregar_grafo(self):
-        with open(self.arquivo, "rb") as f:
-            return NodeUnpickler(f).load()
-
-    def _analisar_performance(self):
-        """Simula o BFS capturando o uso de memória em tempo real"""
-        inicio = time.perf_counter()
-        tracemalloc.start()
-        fila = deque([self.raiz])
-        visitados = set()
-        cont_iteracao = 0
-
-        while fila:
-            atual = fila.popleft()
-            estado = (atual.canibais, atual.missionarios, atual.margem)
-
-            if estado not in visitados:
-                visitados.add(estado)
-                cont_iteracao += 1
-                
-                # Captura memória atual
-                current, peak = tracemalloc.get_traced_memory()
-                
-                self.iteracoes.append(cont_iteracao)
-                self.memorias.append(current / 1024)  # Converte para KB
-
-                for filho in atual.children:
-                    fila.append(filho)
-
-        tracemalloc.stop()
-        self.tempo_execucao = time.perf_counter() - inicio
+        self.resultado = executar_busca(self.tipo, self.X, self.Y, self.Z, self.arquivo)
+        self.tempo_execucao = self.resultado["tempo"]
+        self.iteracoes = self.resultado.get("iteracoes_memoria", self.resultado.get("iteracoes_memoria_real", []))
+        self.memorias = self.resultado.get("serie_memoria", self.resultado.get("serie_memoria_real", []))
 
     def plotar_em_subplot(self, ax):
         """Plota o gráfico em um subplot fornecido"""
+        if not self.iteracoes or not self.memorias:
+            ax.set_title("Sem dados de memória", fontsize=12, fontweight='bold')
+            ax.set_xlabel("Iteração (Nós Explorados)", fontsize=10)
+            ax.set_ylabel("Memória (KB)", fontsize=10)
+            ax.grid(True, alpha=0.3)
+            return None
+
         # Linha de Memória
         linha, = ax.plot(self.iteracoes, self.memorias, marker='o', linestyle='-', 
-                         color='#2c3e50', markersize=4, label='Memória (KB)')
+                 color='#8e44ad', markersize=4, alpha=0.8, label='Memória (KB)')
         
         # Preenchimento sob a curva
-        ax.fill_between(self.iteracoes, self.memorias, color='#3498db', alpha=0.3)
+        ax.fill_between(self.iteracoes, self.memorias, color='#8e44ad', alpha=0.18)
 
         # Configurações de Eixos
         tipo_label = "BFS Normal" if self.tipo == "normal" else "BFS Otimizado"
+        pico_memoria = self.resultado["memoria"] if self.resultado else 0.0
+        memoria_atual = self.resultado.get("memoria_atual", 0.0) if self.resultado else 0.0
         ax.set_title(
-            f"{tipo_label} ({self.X}x{self.Y}, Barco={self.Z})\nTempo: {self.tempo_execucao:.6f} s",
+            f"{tipo_label} ({self.X}x{self.Y}, Barco={self.Z})\nTempo: {self.tempo_execucao:.6f} s | Pico: {pico_memoria:.2f} KB | Atual: {memoria_atual:.2f} KB",
             fontsize=12,
             fontweight='bold'
         )
         ax.set_xlabel("Iteração (Nós Explorados)", fontsize=10)
-        ax.set_ylabel("Uso de Memória (KB)", fontsize=10)
+        ax.set_ylabel("Memória (KB)", fontsize=10)
         
-        # Linha de Pico
-        pico_mem = max(self.memorias) if self.memorias else 0
-        ax.axhline(y=pico_mem, color='red', linestyle='--', alpha=0.6, label=f"Pico: {pico_mem:.2f} KB")
+        # Destaque de pico no gráfico
+        indice_pico = max(range(len(self.memorias)), key=self.memorias.__getitem__)
+        pico_mem = self.memorias[indice_pico]
+        iteracao_pico = self.iteracoes[indice_pico]
+
+        ax.axhline(y=pico_mem, color='red', linestyle='--', linewidth=1.6, alpha=0.9, zorder=7, label=f"Pico: {pico_mem:.2f} KB")
+        ax.scatter(
+            [iteracao_pico],
+            [pico_mem],
+            color='red',
+            edgecolors='white',
+            linewidths=0.8,
+            s=70,
+            zorder=8
+        )
+        ax.annotate(
+            f"Pico {pico_mem:.2f} KB",
+            xy=(iteracao_pico, pico_mem),
+            xytext=(8, 8),
+            textcoords='offset points',
+            fontsize=9,
+            color='red',
+            bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="red", alpha=0.85),
+            zorder=9
+        )
 
         ax.legend()
         ax.grid(True, alpha=0.3)
@@ -127,10 +130,10 @@ def monitores_simultaneos(arquivo_normal, arquivo_otimizado, X=None, Y=None, Z=N
 
     # Medição justa de tempo (alternando ordem para evitar viés de cache)
     def _tempo_normal():
-        return PerformanceMonitor(arquivo_normal, tipo="normal", X=X, Y=Y, Z=Z, verbose=False).tempo_execucao
+        return executar_busca("normal", X, Y, Z, arquivo_normal)["tempo"]
 
     def _tempo_otimizado():
-        return PerformanceMonitor(arquivo_otimizado, tipo="otimizado", X=X, Y=Y, Z=Z, verbose=False).tempo_execucao
+        return executar_busca("otimizado", X, Y, Z, arquivo_otimizado)["tempo"]
 
     tempo_normal_medio, tempo_otimizado_medio = medir_tempos_justos(_tempo_normal, _tempo_otimizado)
     monitor_normal.tempo_execucao = tempo_normal_medio
@@ -206,20 +209,22 @@ def monitores_simultaneos(arquivo_normal, arquivo_otimizado, X=None, Y=None, Z=N
     fig.canvas.mpl_connect("motion_notify_event", on_hover)
     
     # Sincronizar limites verticais para facilitar comparação
-    pico_max = max(max(monitor_normal.memorias) if monitor_normal.memorias else 0,
-                   max(monitor_otimizado.memorias) if monitor_otimizado.memorias else 0)
+    pico_max = max(monitor_normal.resultado["memoria"], monitor_otimizado.resultado["memoria"])
     eixo_y_limite = pico_max * 1.1  # Margem de 10% acima do pico máximo
     ax1.set_ylim(bottom=0, top=eixo_y_limite)
     ax2.set_ylim(bottom=0, top=eixo_y_limite)
 
-    # Sincronizar limite horizontal: o segundo deve usar o mesmo máximo do primeiro
-    x_max_primeiro = max(monitor_normal.iteracoes) if monitor_normal.iteracoes else 1
-    ax1.set_xlim(left=1, right=x_max_primeiro)
-    ax2.set_xlim(left=1, right=x_max_primeiro)
+    # Sincronizar limite horizontal para facilitar comparação
+    x_max_normal = max(monitor_normal.iteracoes) if monitor_normal.iteracoes else 1
+    x_max_otim = max(monitor_otimizado.iteracoes) if monitor_otimizado.iteracoes else 1
+    x_max_global = max(x_max_normal, x_max_otim)
+    ax1.set_xlim(left=1, right=x_max_global)
+    ax2.set_xlim(left=1, right=x_max_global)
     
     # Título geral
     fig.suptitle(f"Comparação de Performance - BFS Normal vs Otimizado ({X}x{Y}, Barco={Z})", 
                  fontsize=14, fontweight='bold', y=0.98)
+
     
     plt.tight_layout()
     
@@ -228,27 +233,28 @@ def monitores_simultaneos(arquivo_normal, arquivo_otimizado, X=None, Y=None, Z=N
     print("📊 COMPARAÇÃO DE PERFORMANCE")
     print("="*60)
     print(f"\nBFS Normal:")
-    print(f"  • Total de iterações: {len(monitor_normal.iteracoes)}")
+    print(f"  • Total de iterações: {monitor_normal.resultado['visitados']}")
     print(f"  • Tempo de execução: {monitor_normal.tempo_execucao:.6f} s")
-    print(f"  • Pico de memória: {max(monitor_normal.memorias):.2f} KB")
-    print(f"  • Memória final: {monitor_normal.memorias[-1]:.2f} KB")
+    print(f"  • Pico de memória: {monitor_normal.resultado['memoria']:.2f} KB")
+    print(f"  • Memória atual: {monitor_normal.resultado.get('memoria_atual', 0.0):.2f} KB")
     print(f"\nBFS Otimizado:")
-    print(f"  • Total de iterações: {len(monitor_otimizado.iteracoes)}")
+    print(f"  • Total de iterações: {monitor_otimizado.resultado['visitados']}")
     print(f"  • Tempo de execução: {monitor_otimizado.tempo_execucao:.6f} s")
-    print(f"  • Pico de memória: {max(monitor_otimizado.memorias):.2f} KB")
-    print(f"  • Memória final: {monitor_otimizado.memorias[-1]:.2f} KB")
+    print(f"  • Pico de memória: {monitor_otimizado.resultado['memoria']:.2f} KB")
+    print(f"  • Memória atual: {monitor_otimizado.resultado.get('memoria_atual', 0.0):.2f} KB")
     
     # Economias
-    economia_pico = ((max(monitor_normal.memorias) - max(monitor_otimizado.memorias)) / 
-                     max(monitor_normal.memorias) * 100) if max(monitor_normal.memorias) > 0 else 0
-    economia_final = ((monitor_normal.memorias[-1] - monitor_otimizado.memorias[-1]) / 
-                      monitor_normal.memorias[-1] * 100) if monitor_normal.memorias[-1] > 0 else 0
+    economia_pico = ((monitor_normal.resultado['memoria'] - monitor_otimizado.resultado['memoria']) /
+                     monitor_normal.resultado['memoria'] * 100) if monitor_normal.resultado['memoria'] > 0 else 0
+    memoria_atual_normal = monitor_normal.resultado.get('memoria_atual', 0.0)
+    memoria_atual_otim = monitor_otimizado.resultado.get('memoria_atual', 0.0)
+    economia_final = ((memoria_atual_normal - memoria_atual_otim) / memoria_atual_normal * 100) if memoria_atual_normal > 0 else 0
     diferenca_tempo = monitor_normal.tempo_execucao - monitor_otimizado.tempo_execucao
     
     print(f"\n💰 ECONOMIA COM OTIMIZAÇÃO:")
     print(f"  • Diferença de tempo (normal - otimizado): {diferenca_tempo:.6f} s")
     print(f"  • Redução de pico: {economia_pico:.1f}%")
-    print(f"  • Redução final: {economia_final:.1f}%")
+    print(f"  • Redução de memória atual: {economia_final:.1f}%")
     print("="*60 + "\n")
     
     plt.show()
