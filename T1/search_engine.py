@@ -3,7 +3,6 @@ import pickle
 import sys
 import time
 import tracemalloc
-
 from pathlib import Path
 
 from node import Node
@@ -19,11 +18,11 @@ class SearchEngine:
         self.ARQUIVO_GRAFO = arquivo_grafo if arquivo_grafo else self.PASTA_DADOS / f"grafo_{x}x{y}_z{z}.pkl"
         self.pickle = pickle_module
 
-    def conferir_movimento_valido(self, cani_esquerda, miss_esquerda):
-        cani_direita = self.X - cani_esquerda
-        miss_direita = self.Y - miss_esquerda
+    def conferir_movimento_valido(self, miss_esquerda, cani_esquerda):
+        miss_direita = self.X - miss_esquerda
+        cani_direita = self.Y - cani_esquerda
 
-        if cani_esquerda < 0 or miss_esquerda < 0 or cani_direita < 0 or miss_direita < 0:
+        if miss_esquerda < 0 or cani_esquerda < 0 or miss_direita < 0 or cani_direita < 0:
             return False
 
         if miss_esquerda > 0 and cani_esquerda > miss_esquerda:
@@ -36,27 +35,28 @@ class SearchEngine:
     def gerar_e_salvar_grafo(self, raiz):
         """Explora o espaço de estados e salva no diretório configurado"""
         fila = deque([raiz])
-        visitados = {(raiz.canibais, raiz.missionarios, raiz.margem)}
-        raiz_estado = (raiz.canibais, raiz.missionarios, raiz.margem)
+        visitados = {(raiz.missionarios, raiz.canibais, raiz.margem)}
+        raiz_estado = (raiz.missionarios, raiz.canibais, raiz.margem)
         adjacencia = {raiz_estado: []}
         
         while fila:
             atual = fila.popleft()
             prox_margem = "direita" if atual.margem == "esquerda" else "esquerda"
 
-            for b_cani in range(self.Z + 1):
-                for b_miss in range(self.Z + 1):
-                    if 0 < b_cani + b_miss <= self.Z:
-                        novo_c = atual.canibais - b_cani if prox_margem == "direita" else atual.canibais + b_cani
+            # Missionários primeiro no loop
+            for b_miss in range(self.Z + 1):
+                for b_cani in range(self.Z + 1):
+                    if 0 < b_miss + b_cani <= self.Z:
                         novo_m = atual.missionarios - b_miss if prox_margem == "direita" else atual.missionarios + b_miss
-                        
-                        if self.conferir_movimento_valido(novo_c, novo_m):
-                            estado = (novo_c, novo_m, prox_margem)
+                        novo_c = atual.canibais - b_cani if prox_margem == "direita" else atual.canibais + b_cani
+
+                        if self.conferir_movimento_valido(novo_m, novo_c):
+                            estado = (novo_m, novo_c, prox_margem)
                             if estado not in visitados:
-                                acao = f"Moveu {b_cani}C e {b_miss}M para {prox_margem.upper()}"
-                                filho = Node(novo_c, novo_m, prox_margem, acao, atual)
+                                acao = f"Moveu {b_miss}M e {b_cani}C para {prox_margem.upper()}"
+                                filho = Node(novo_m, novo_c, prox_margem, acao, atual)
                                 atual.add(filho)
-                                estado_atual = (atual.canibais, atual.missionarios, atual.margem)
+                                estado_atual = (atual.missionarios, atual.canibais, atual.margem)
                                 adjacencia.setdefault(estado_atual, []).append((
                                     estado,
                                     acao,
@@ -84,36 +84,37 @@ class SearchEngine:
         return raiz
 
     def check_if_objective(self, node_atual, objetivo_tupla):
-        """Verifica se o estado atual é o estado objetivo"""
-        return (node_atual.canibais == objetivo_tupla[0] and 
-                node_atual.missionarios == objetivo_tupla[1] and 
+        """Verifica se o estado atual é o estado objetivo (Missionários, Canibais, Margem)"""
+        return (node_atual.missionarios == objetivo_tupla[0] and 
+                node_atual.canibais == objetivo_tupla[1] and 
                 node_atual.margem == objetivo_tupla[2])
     
     def gerar_combinacoes_barco(self, node_atual, next_margem, visitados, fila):
-        for barco_cani in range(self.Z + 1):
-                for barco_miss in range(self.Z + 1):
-                    if barco_cani + barco_miss > self.Z or barco_cani + barco_miss == 0:
-                        continue  
-                    
-                    # 5. Calcula os novos valores na margem esquerda
-                    if next_margem == "direita":
-                        novo_cani = node_atual.canibais - barco_cani
-                        novo_miss = node_atual.missionarios - barco_miss
-                        acao_str = f"Moveu {barco_cani}C e {barco_miss}M para a DIREITA"
-                    else:
-                        novo_cani = node_atual.canibais + barco_cani
-                        novo_miss = node_atual.missionarios + barco_miss
-                        acao_str = f"Moveu {barco_cani}C e {barco_miss}M para a ESQUERDA"
+        # Missionários primeiro no loop
+        for barco_miss in range(self.Z + 1):
+            for barco_cani in range(self.Z + 1):
+                if barco_miss + barco_cani > self.Z or barco_miss + barco_cani == 0:
+                    continue  
+                
+                # Calcula os novos valores na margem esquerda
+                if next_margem == "direita":
+                    novo_miss = node_atual.missionarios - barco_miss
+                    novo_cani = node_atual.canibais - barco_cani
+                    acao_str = f"Moveu {barco_miss}M e {barco_cani}C para a DIREITA"
+                else:
+                    novo_miss = node_atual.missionarios + barco_miss
+                    novo_cani = node_atual.canibais + barco_cani
+                    acao_str = f"Moveu {barco_miss}M e {barco_cani}C para a ESQUERDA"
 
-                    # 6. Valida o movimento e gera o filho
-                    if self.conferir_movimento_valido(novo_cani, novo_miss):
-                        novo_estado_tuplo = (novo_cani, novo_miss, next_margem)
-                        
-                        # Apenas adicionamos à fila se ainda não visitámos este estado
-                        if novo_estado_tuplo not in visitados:
-                            filho = Node(novo_cani, novo_miss, next_margem, acao_str, node_atual)
-                            node_atual.add(filho)
-                            fila.append(filho)
+                # Valida o movimento e gera o filho
+                if self.conferir_movimento_valido(novo_miss, novo_cani):
+                    novo_estado_tuplo = (novo_miss, novo_cani, next_margem)
+                    
+                    # Apenas adicionamos à fila se ainda não visitámos este estado
+                    if novo_estado_tuplo not in visitados:
+                        filho = Node(novo_miss, novo_cani, next_margem, acao_str, node_atual)
+                        node_atual.add(filho)
+                        fila.append(filho)
 
     def bfs(self, raiz, objetivo_tupla):
         self.nos_visitados = 0
@@ -148,7 +149,8 @@ class SearchEngine:
                     "visitados": self.nos_visitados
                 }
 
-            estado_atual = (node_atual.canibais, node_atual.missionarios, node_atual.margem)
+            # Tupla no formato correto: (Missionários, Canibais, Margem)
+            estado_atual = (node_atual.missionarios, node_atual.canibais, node_atual.margem)
             if estado_atual in visitados:
                 continue
             visitados.add(estado_atual)
@@ -172,12 +174,7 @@ class SearchEngine:
         }
 
     def bfs_memory_optimized(self, raiz, objetivo_tupla):
-        """BFS com mesma estrutura do normal, mas limpando nós infrutíferos.
-
-        A única diferença em relação ao BFS normal é tentar remover da árvore
-        nós sem filhos viáveis após expansão, para reduzir pressão de memória.
-        A limpeza acontece por níveis da BFS.
-        """
+        """BFS com mesma estrutura do normal, mas limpando nós infrutíferos."""
         self.nos_visitados = 0
         tracemalloc.start()
         start_t = time.perf_counter()
@@ -222,7 +219,8 @@ class SearchEngine:
                         "visitados": self.nos_visitados
                     }
 
-                estado_atual = (node_atual.canibais, node_atual.missionarios, node_atual.margem)
+                # Tupla no formato correto: (Missionários, Canibais, Margem)
+                estado_atual = (node_atual.missionarios, node_atual.canibais, node_atual.margem)
                 if estado_atual in visitados:
                     continue
                 visitados.add(estado_atual)
@@ -234,8 +232,7 @@ class SearchEngine:
                 if len(node_atual.children) == filhos_antes:
                     podar_no_infrutifero(node_atual)
 
-            # Limpeza adicional ao fim do nível: remove nós já processados que
-            # acabaram sem filhos após podas locais no mesmo nível.
+            # Limpeza adicional ao fim do nível
             for no in nos_nivel_atual:
                 if len(no.children) == 0:
                     podar_no_infrutifero(no)

@@ -15,7 +15,7 @@ def main():
     data = load_json(JSON_PATH)
     testes = data['testes']
     algs = ['bfs', 'bfs_otimizado']
-    # Estruturas para médias gerais, por Z e por balanceamento
+    # Estruturas para médias gerais, por valor de Z e por balanceamento
     resultados_geral = {alg: {'tempo': [], 'memoria': [], 'visitados': []} for alg in algs}
     resultados_por_z = {}
     resultados_por_balanceio = {}
@@ -29,28 +29,36 @@ def main():
             return 'mais_canibais'
 
     for t in testes:
+        # PULA OS CENÁRIOS QUE AINDA NÃO FORAM EXECUTADOS
+        if 'out' not in t:
+            continue
+            
         x = t['in']['X']
         y = t['in']['Y']
         z = t['in']['Z']
         out = t['out']
         balanceio = get_balanceio(x, y)
+        
         if z not in resultados_por_z:
             resultados_por_z[z] = {alg: {'tempo': [], 'memoria': [], 'visitados': []} for alg in algs}
         if balanceio not in resultados_por_balanceio:
             resultados_por_balanceio[balanceio] = {alg: {'tempo': [], 'memoria': [], 'visitados': []} for alg in algs}
+            
         for alg in algs:
+            # O 'if alg in out' também protege contra testes que foram "skipped" (pulados) no benchmark
             if alg in out:
                 resultados_geral[alg]['tempo'].append(out[alg]['tempo_s'])
                 resultados_geral[alg]['memoria'].append(out[alg]['memoria_kb'])
                 resultados_geral[alg]['visitados'].append(out[alg]['visitados'])
+                
                 resultados_por_z[z][alg]['tempo'].append(out[alg]['tempo_s'])
                 resultados_por_z[z][alg]['memoria'].append(out[alg]['memoria_kb'])
                 resultados_por_z[z][alg]['visitados'].append(out[alg]['visitados'])
+                
                 resultados_por_balanceio[balanceio][alg]['tempo'].append(out[alg]['tempo_s'])
                 resultados_por_balanceio[balanceio][alg]['memoria'].append(out[alg]['memoria_kb'])
                 resultados_por_balanceio[balanceio][alg]['visitados'].append(out[alg]['visitados'])
 
-    # Função para calcular médias
     def calcular_medias(resultados, extra_col=None, extra_val=None):
         linhas = []
         for alg in algs:
@@ -71,7 +79,7 @@ def main():
             linhas.append(row)
         return linhas
 
-    # Gera todas as médias
+    # Todas as médias
     medias = []
     # Médias gerais
     medias.extend(calcular_medias(resultados_geral))

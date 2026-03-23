@@ -42,14 +42,6 @@ def hierarquia_pos(G, root=None, width=1., vert_gap=0.2, vert_loc=0, xcenter=0.5
                 visitados.add(filho)
                 fila.append((filho, nivel + 1))
 
-    # Caso a árvore tenha nós desconectados do root por qualquer motivo,
-    # posiciona-os após os níveis conhecidos para evitar KeyError.
-    if len(visitados) < len(T.nodes):
-        nivel_extra = (max(niveis.keys()) + 1) if niveis else 0
-        for no in T.nodes:
-            if no not in visitados:
-                niveis.setdefault(nivel_extra, []).append(no)
-
     pos = {}
     x_inicio = xcenter - (width / 2)
 
